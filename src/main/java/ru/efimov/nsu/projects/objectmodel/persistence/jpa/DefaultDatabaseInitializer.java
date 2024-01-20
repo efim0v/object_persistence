@@ -1,29 +1,3 @@
-@Entity
-public class FirstEntity {
-    @Id
-    @GeneratedValue
-    private Long id;
-
-    @ManyToOne
-    private SuperEntity superEntity;
-}
-
-@Entity
-@RequiredArgsConstructor
-@AllArgsConstructor
-@Builder
-public class SuperEntity {
-    @Id
-    @GeneratedValue
-    Long id;
-
-    @OneToMany(mappedBy = "")
-    final List<FirstEntity> first;
-
-    String stringOne;
-    String stringTwo;
-}
-
 package ru.efimov.nsu.projects.objectmodel.persistence.jpa;
 
 import lombok.RequiredArgsConstructor;
@@ -72,9 +46,8 @@ public class DefaultDatabaseInitializer {
             EntityMetadata.RelationMetadata relationMetadata = fieldMetadata.getRelationMetadata();
             if (relationMetadata != null) {
                 switch (relationMetadata.getRelationType()) {
-                    case ONE_TO_MANY:
                     case MANY_TO_ONE:
-                        handleManyToOneOrOneToMany(connection, entityMetadata, fieldMetadata);
+                        handleManyToOne(connection, entityMetadata, fieldMetadata);
                         break;
                     case MANY_TO_MANY:
                         handleManyToMany(connection, entityMetadata, fieldMetadata);
@@ -102,8 +75,17 @@ public class DefaultDatabaseInitializer {
             EntityMetadata.FieldMetadata fieldMetadata = fieldEntry.getValue();
             Class<?> fieldType = fieldMetadata.getFieldType();
 
-            if (Collection.class.isAssignableFrom(fieldType) || fieldType.isAnnotationPresent(Entity.class)) {
-                // Пропускаем коллекции и сущности
+            // Пропускаем коллекции, так как они обрабатываются в контексте связей
+            if (Collection.class.isAssignableFrom(fieldType)) {
+                continue;
+            }
+
+            // Пропускаем сущности, но обрабатываем столбцы для внешних ключей
+            if (fieldType.isAnnotationPresent(Entity.class)) {
+                if (fieldMetadata.getRelationMetadata() != null) {
+                    String columnName = fieldMetadata.getColumnName(); // Название столбца для внешнего ключа
+                    createQuery.append(columnName).append(" BIGINT, ");
+                }
                 continue;
             }
 
@@ -120,27 +102,28 @@ public class DefaultDatabaseInitializer {
         createQuery.append(")");
 
         try (Statement statement = connection.createStatement()) {
+            log.trace("QUERY: {}", createQuery);
             statement.execute(createQuery.toString());
         }
     }
 
-    private void handleManyToOneOrOneToMany(Connection connection, EntityMetadata entityMetadata, EntityMetadata.FieldMetadata fieldMetadata) throws SQLException {
+    private void handleManyToOne(Connection connection, EntityMetadata entityMetadata, EntityMetadata.FieldMetadata fieldMetadata) throws SQLException {
         // Получаем метаданные для связанной сущности
         EntityMetadata relatedEntityMetadata = context.getMetadataByClass(fieldMetadata.getRelationMetadata().getTargetEntity());
+
+        String fkeyColumnName = fieldMetadata.getColumnName();
 
         // Определяем названия таблиц
         String tableName = entityMetadata.getTableName();
         String relatedTableName = relatedEntityMetadata.getTableName();
-
         // Создаем SQL запрос для добавления внешнего ключа
-        String foreignKeyName = tableName + "_" + fieldMetadata.getColumnName() + "_fkey";
+        String foreignKeyName = relatedTableName + "_fkey"; // Имя внешнего ключа
         String addForeignKeyQuery = String.format(
-                "ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)",
+                "ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(id)", // Предполагаем, что столбец называется 'superEntity'
                 tableName,
                 foreignKeyName,
-                fieldMetadata.getColumnName(),
-                relatedTableName,
-                relatedEntityMetadata.getPrimaryKeyField()
+                fkeyColumnName,
+                relatedTableName
         );
 
         // Выполнение запроса
@@ -161,11 +144,11 @@ public class DefaultDatabaseInitializer {
         // Создаем SQL запрос для создания промежуточной таблицы
         StringBuilder createJoinTableQuery = new StringBuilder();
         createJoinTableQuery.append("CREATE TABLE IF NOT EXISTS ").append(joinTableName).append(" (")
-                .append(tableName).append("_id INT, ")
-                .append(relatedTableName).append("_id INT, ")
-                .append("PRIMARY KEY (").append(tableName).append("_id, ").append(relatedTableName).append("_id), ")
-                .append("FOREIGN KEY (").append(tableName).append("_id) REFERENCES ").append(tableName).append("(id), ")
-                .append("FOREIGN KEY (").append(relatedTableName).append("_id) REFERENCES ").append(relatedTableName).append("(id))");
+                .append(tableName).append("_fkey INT, ")
+                .append(relatedTableName).append("_fkey INT, ")
+                .append("PRIMARY KEY (").append(tableName).append("_fkey, ").append(relatedTableName).append("_fkey), ")
+                .append("FOREIGN KEY (").append(tableName).append("_fkey) REFERENCES ").append(tableName).append("(id), ")
+                .append("FOREIGN KEY (").append(relatedTableName).append("_fkey) REFERENCES ").append(relatedTableName).append("(id))");
 
         // Выполнение запроса
         try (Statement statement = connection.createStatement()) {
@@ -202,30 +185,3 @@ public class DefaultDatabaseInitializer {
         throw new IllegalArgumentException("Unmapped SQL type for " + fieldType.getName());
     }
 }
-
-
-/Users/artemefimov/Library/Java/JavaVirtualMachines/openjdk-19.0.1/Contents/Home/bin/java -javaagent:/Users/artemefimov/Applications/IntelliJ IDEA Ultimate.app/Contents/lib/idea_rt.jar=51093:/Users/artemefimov/Applications/IntelliJ IDEA Ultimate.app/Contents/bin -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -classpath /Users/artemefimov/Desktop/object_persistence/target/classes:/Users/artemefimov/.m2/repository/org/reflections/reflections/0.10.2/reflections-0.10.2.jar:/Users/artemefimov/.m2/repository/org/javassist/javassist/3.28.0-GA/javassist-3.28.0-GA.jar:/Users/artemefimov/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:/Users/artemefimov/.m2/repository/org/yaml/snakeyaml/2.0/snakeyaml-2.0.jar:/Users/artemefimov/.m2/repository/org/postgresql/postgresql/42.7.1/postgresql-42.7.1.jar:/Users/artemefimov/.m2/repository/org/checkerframework/checker-qual/3.41.0/checker-qual-3.41.0.jar:/Users/artemefimov/.m2/repository/org/slf4j/slf4j-api/2.0.9/slf4j-api-2.0.9.jar:/Users/artemefimov/.m2/repository/ch/qos/logback/logback-classic/1.4.7/logback-classic-1.4.7.jar:/Users/artemefimov/.m2/repository/ch/qos/logback/logback-core/1.4.7/logback-core-1.4.7.jar:/Users/artemefimov/.m2/repository/org/jetbrains/annotations/24.1.0/annotations-24.1.0.jar ru.efimov.nsu.projects.objectmodel.Application
-2023-12-22 17:38:02 [main] INFO  org.reflections.Reflections - Reflections took 27 ms to scan 1 urls, producing 12 keys and 57 values
-2023-12-22 17:38:02 [main] INFO  org.reflections.Reflections - Reflections took 7 ms to scan 1 urls, producing 12 keys and 57 values
-2023-12-22 17:38:02 [main] TRACE r.e.n.p.objectmodel.BeanFactory - arguments: class ru.efimov.nsu.projects.objectmodel.TestEntityRepository
-2023-12-22 17:38:02 [main] TRACE r.e.n.p.objectmodel.BeanFactory - arguments: class ru.efimov.nsu.projects.objectmodel.persistence.jpa.Configuration
-2023-12-22 17:38:02 [main] INFO  org.reflections.Reflections - Reflections took 5 ms to scan 1 urls, producing 12 keys and 57 values
-2023-12-22 17:38:02 [main] INFO  org.reflections.Reflections - Reflections took 4 ms to scan 1 urls, producing 12 keys and 57 values
-2023-12-22 17:38:02 [main] DEBUG r.e.n.p.o.p.j.DefaultDatabaseInitializer - QUERY: ALTER TABLE SuperEntity ADD CONSTRAINT SuperEntity_first_fkey FOREIGN KEY (first) REFERENCES FirstEntity(id)
-org.postgresql.util.PSQLException: ERROR: column "first" referenced in foreign key constraint does not exist
-	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2712)
-	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2400)
-	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:367)
-	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:498)
-	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:415)
-	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:335)
-	at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:321)
-	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:297)
-	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:292)
-	at ru.efimov.nsu.projects.objectmodel.persistence.jpa.DefaultDatabaseInitializer.handleManyToOneOrOneToMany(DefaultDatabaseInitializer.java:123)
-	at ru.efimov.nsu.projects.objectmodel.persistence.jpa.DefaultDatabaseInitializer.addRelationConstraints(DefaultDatabaseInitializer.java:51)
-	at ru.efimov.nsu.projects.objectmodel.persistence.jpa.DefaultDatabaseInitializer.initializeDatabase(DefaultDatabaseInitializer.java:37)
-	at ru.efimov.nsu.projects.objectmodel.NoSpring.runApp(NoSpring.java:61)
-	at ru.efimov.nsu.projects.objectmodel.Application.main(Application.java:6)
-
-Process finished with exit code 0

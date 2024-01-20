@@ -1,4 +1,4 @@
 database:
-  url: jdbc:h2:mem:testdb
-  username: sa
-  password:
+  url: jdbc:postgresql://localhost:6543/default
+  username: default
+  password: default

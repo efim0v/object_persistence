@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  postgres:
+    container_name: op_postgres
+    image: postgres:latest
+    ports:
+      - 6543:5432
+    volumes:
+      - ./schema/postgres:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=default
+      - POSTGRES_PASSWORD=default
+      - POSTGRES_DB=default
+    networks:
+      - bridgernet
+volumes:
+  postgres_data:
+networks:
+  bridgernet:
+    driver: bridge

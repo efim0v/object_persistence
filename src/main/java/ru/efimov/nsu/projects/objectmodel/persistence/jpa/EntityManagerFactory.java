@@ -1,11 +1,13 @@
 package ru.efimov.nsu.projects.objectmodel.persistence.jpa;
 
+import ru.efimov.nsu.projects.objectmodel.core.Bean;
 import ru.efimov.nsu.projects.objectmodel.utils.YamlConfigReader;
 
 import java.util.Map;
 
 public class EntityManagerFactory {
-    public static EntityManagerImpl createEntityManager(String configFileName) {
+
+    public static EntityManagerImpl createEntityManager(String configFileName, JpaContext context) {
         Map<String, Object> config = YamlConfigReader.readConfig(configFileName);
         Map<String, String> dbConfig = (Map<String, String>) config.get("database");
 
@@ -16,7 +18,7 @@ public class EntityManagerFactory {
 
         // Здесь должна быть логика для создания и настройки EntityManager
         // Например, использование JPA или другой ORM библиотеки
-        EntityManagerImpl entityManagerImpl = new EntityManagerImpl(url, username, password);
+        EntityManagerImpl entityManagerImpl = new EntityManagerImpl(url, username, password, context);
 
         return entityManagerImpl;
     }
