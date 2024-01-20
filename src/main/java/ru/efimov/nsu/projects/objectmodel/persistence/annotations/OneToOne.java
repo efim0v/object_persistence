@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface OneToMany {
+public @interface OneToOne {
     String mappedBy();
     CascadeType[] cascade() default {};
 }

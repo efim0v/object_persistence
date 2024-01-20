@@ -1,10 +1,10 @@
-package ru.efimov.nsu.projects.objectmodel;
+package ru.efimov.nsu.projects.objectmodel.persistence.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Component {}
+@Target(ElementType.FIELD)
+public @interface GeneratedValue {}

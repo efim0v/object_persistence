@@ -2,7 +2,7 @@ package ru.efimov.nsu.projects.objectmodel.persistence.interfaces;
 
 import java.util.Optional;
 
-public interface CrudRepository<T, ID> {
+public interface CrudRepository<T, ID> extends Repository<T, ID> {
     <S extends T> S save(S entity);
 
     <S extends T> Iterable<S> saveAll(Iterable<S> entities);
