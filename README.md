@@ -1,10 +1,10 @@
 # object_persistence
 
-A Spring-style container and a JPA-style persistence layer, rebuilt by hand in
-plain Java.
+**December 2023 – January 2024.** A Spring-style container and a JPA-style
+persistence layer, rebuilt by hand in plain Java.
 
 This was a study project written during a short hackathon at Novosibirsk State
-University in December 2023 – January 2024. The task was to build our own
+University. The task was to build our own
 analogue of Spring / Spring Boot with object persistence, working only from
 memory of how the original framework behaves, and to implement the canonical
 proxy pattern for repositories with Java dynamic proxies.
